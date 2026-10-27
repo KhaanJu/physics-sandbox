@@ -1,0 +1,1075 @@
+/* ==========================================================================
+   style.css — Estética "Technical Line Art / Engineering Schematic"
+   ========================================================================== */
+
+:root {
+  --bg-color: #ebebe7;
+  --line-color: #111111;
+  --panel-bg: rgba(255, 255, 255, 0.94);
+  --accent-gray: #777777;
+  --accent-delete: #d32f2f;
+  --border-width: 1.5px;
+  --font-mono: "SF Mono", "Cascadia Code", "Roboto Mono", "Fira Code", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  font-family: var(--font-mono);
+  color: var(--line-color);
+}
+
+/* Lienzo de simulación */
+#canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  z-index: 1;
+}
+
+/* Clases dinámicas de cursor */
+.cursor-default { cursor: default; }
+.cursor-grab { cursor: grab; }
+.cursor-grabbing { cursor: grabbing; }
+.cursor-crosshair { cursor: crosshair; }
+.cursor-pointer { cursor: pointer; }
+.cursor-delete { cursor: crosshair; }
+
+/* ==========================================================================
+   BARRA DE HERRAMIENTAS FLOTANTE (TOOLBAR SUPERIOR)
+   ========================================================================== */
+.toolbar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--line-color);
+  box-shadow: 4px 4px 0px rgba(17, 17, 17, 0.15);
+  padding: 4px;
+  gap: 4px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--line-color);
+  margin: 0 3px;
+  opacity: 0.3;
+}
+
+.tool-btn {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1px solid var(--line-color);
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.08s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tool-btn .tool-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+}
+
+.tool-btn .key-hint {
+  font-size: 8px;
+  opacity: 0.55;
+  border: 1px solid currentColor;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.tool-btn:hover {
+  background: #f0f0f0;
+}
+
+.tool-btn.active {
+  background: var(--line-color);
+  color: #ffffff;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.tool-btn.active .key-hint {
+  opacity: 0.9;
+  border-color: #ffffff;
+}
+
+.tool-btn.btn-delete:hover {
+  border-color: var(--accent-delete);
+  color: var(--accent-delete);
+}
+
+.tool-btn.btn-delete.active {
+  background: var(--accent-delete);
+  border-color: var(--accent-delete);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   MENÚ PLEGABLE PARA AGREGAR OBJETOS
+   ========================================================================== */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropdown-chevron {
+  font-size: 9px;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+
+.dropdown.is-open .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--line-color);
+  box-shadow: 4px 4px 0px rgba(17, 17, 17, 0.15);
+  padding: 4px;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 50;
+  backdrop-filter: blur(6px);
+}
+
+.dropdown.is-open .dropdown-menu {
+  display: flex;
+}
+
+.dropdown-item {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1px solid transparent;
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  transition: all 0.08s ease;
+  white-space: nowrap;
+}
+
+.dropdown-item .item-icon {
+  font-size: 13px;
+  width: 16px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.dropdown-item .item-text {
+  flex: 1;
+}
+
+.dropdown-item:hover {
+  background: #f0f0f0;
+  border-color: var(--line-color);
+}
+
+.dropdown-item.active {
+  background: var(--line-color);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   PANEL DE PARÁMETROS DESLIZABLE Y MINIMIZABLE
+   ========================================================================== */
+.hud-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 310px;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--line-color);
+  box-shadow: 4px 4px 0px rgba(17, 17, 17, 0.15);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  z-index: 30;
+  backdrop-filter: blur(4px);
+  user-select: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafafa;
+  border-bottom: var(--border-width) solid var(--line-color);
+  padding: 8px 10px 8px 12px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: grab;
+  touch-action: none;
+}
+
+.panel-header:active {
+  cursor: grabbing;
+}
+
+.panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.drag-handle-grip {
+  font-size: 12px;
+  color: var(--accent-gray);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.panel-header-title {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-ctrl-btn {
+  background: #ffffff;
+  border: 1px solid var(--line-color);
+  color: var(--line-color);
+  width: 20px;
+  height: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 1px 1px 0px rgba(17, 17, 17, 0.2);
+  transition: all 0.08s ease;
+}
+
+.panel-ctrl-btn:hover {
+  background: var(--line-color);
+  color: #ffffff;
+}
+
+.panel-body {
+  padding: 14px 16px;
+}
+
+/* Estado Minimizado */
+.hud-panel.is-minimized {
+  width: 250px;
+}
+
+.hud-panel.is-minimized .panel-header {
+  border-bottom: none;
+}
+
+.hud-panel.is-minimized .panel-body {
+  display: none;
+}
+
+.panel-header .badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--line-color);
+  font-size: 9px;
+  background: #f0f0f0;
+}
+
+/* ==========================================================================
+   VENTANA INSPECTOR DE PROPIEDADES DE OBJETO (DOBLE CLIC / CERRABLE)
+   ========================================================================== */
+.object-inspector-panel {
+  position: absolute;
+  top: 75px;
+  right: 345px;
+  width: 260px;
+  max-width: 90vw;
+  z-index: 45;
+  background: #ffffff;
+  border: var(--border-width) solid var(--line-color);
+  box-shadow: 4px 4px 0px rgba(17, 17, 17, 0.25);
+  opacity: 1;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.object-inspector-panel.is-hidden {
+  display: none !important;
+}
+
+.inspector-badge {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border: 1px solid var(--line-color);
+  background: #f0f0f0;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+
+.panel-close-btn {
+  color: #b71c1c;
+}
+
+.panel-close-btn:hover {
+  background: #d32f2f !important;
+  color: #ffffff !important;
+}
+
+.inspector-props.is-hidden {
+  display: none !important;
+}
+
+.inspector-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent-gray);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+/* Grupo de botones para Bloqueo de Ejes X / Y (Guías 1D y osciladores acoplados) */
+.axis-lock-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.axis-lock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1.5px solid var(--line-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px rgba(17, 17, 17, 0.15);
+  transition: all 0.1s ease;
+  user-select: none;
+}
+
+.axis-lock-btn:hover {
+  background: #f5f5f5;
+}
+
+.axis-lock-btn .lock-indicator {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent-gray);
+  margin-bottom: 2px;
+}
+
+.axis-lock-btn .lock-text {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.axis-lock-btn .lock-sub {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--accent-gray);
+  margin-top: 2px;
+}
+
+/* Estado bloqueado activo: inversión gráfica técnica */
+.axis-lock-btn.is-locked {
+  background: var(--line-color);
+  color: #ffffff;
+  border-color: #000000;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.axis-lock-btn.is-locked .lock-indicator {
+  color: #b0bec5;
+}
+
+.axis-lock-btn.is-locked .lock-sub {
+  color: #cccccc;
+}
+
+/* Telemetría contextual compacta */
+.inspector-telemetry-mini {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: #f7f7f5;
+  border: 1px dashed var(--line-color);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.inspector-telemetry-mini .mini-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--accent-gray);
+  margin-top: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 2px;
+  font-weight: 600;
+}
+
+/* Aviso de estado vacío para parámetros detectables */
+.params-empty-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 10px;
+  background: #fafafa;
+  border: 1px dashed var(--line-color);
+  margin-bottom: 12px;
+  gap: 6px;
+}
+
+.params-empty-notice.is-hidden {
+  display: none !important;
+}
+
+.params-empty-notice .empty-icon {
+  font-size: 16px;
+  color: var(--accent-gray);
+  line-height: 1;
+}
+
+.params-empty-notice .empty-text {
+  font-size: 10px;
+  color: #555555;
+  line-height: 1.45;
+}
+
+.control-group {
+  margin-bottom: 11px;
+  transition: opacity 0.15s ease;
+}
+
+.control-group.is-hidden {
+  display: none !important;
+}
+
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.control-label span.param-sym {
+  font-style: italic;
+}
+
+.control-label span.param-val {
+  color: #222;
+}
+
+/* Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #e0e0e0;
+  outline: none;
+  border: 1px solid var(--line-color);
+  margin: 4px 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  background: #ffffff;
+  border: 1.5px solid var(--line-color);
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: 1px 1px 0 #111;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--line-color);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  background: #ffffff;
+  border: 1.5px solid var(--line-color);
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: 1px 1px 0 #111;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--line-color);
+}
+
+/* Presets de Escala Temporal (Cámara Lenta) */
+.timescale-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.preset-btn {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1px solid var(--line-color);
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.08s ease;
+}
+
+.preset-btn:hover {
+  background: #f0f0f0;
+}
+
+.preset-btn.active {
+  background: var(--line-color);
+  color: #ffffff;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Botones de acción */
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+button.schematic-btn {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1.5px solid var(--line-color);
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-shadow: 2px 2px 0px rgba(17, 17, 17, 0.2);
+  transition: all 0.1s ease;
+}
+
+button.schematic-btn:hover {
+  background: var(--line-color);
+  color: #ffffff;
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+button.schematic-btn:active {
+  transform: translate(2px, 2px);
+}
+
+button.schematic-btn.btn-clear-full {
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* Telemetría independiente */
+.telemetry-panel {
+  top: 20px;
+  left: 20px;
+  right: auto;
+  width: 275px;
+}
+
+.telemetry-panel.is-minimized {
+  width: 220px;
+}
+
+.telemetry-panel .panel-body {
+  padding: 10px 12px;
+}
+
+/* Ventana de Control Temporal y Retroceso */
+.timescale-panel {
+  top: 235px;
+  left: 20px;
+  right: auto;
+  width: 285px;
+}
+
+.timescale-panel.is-minimized {
+  width: 220px;
+}
+
+.timescale-panel .panel-body {
+  padding: 12px 14px;
+}
+
+#group-timeline {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  border-top: 1px dashed #ccc;
+  padding-top: 8px;
+}
+
+.transport-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.transport-btn {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1.5px solid var(--line-color);
+  padding: 6px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 2px 0px rgba(17, 17, 17, 0.2);
+  transition: all 0.08s ease;
+}
+
+.transport-btn:hover {
+  background: var(--line-color);
+  color: #ffffff;
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+.transport-btn:active {
+  transform: translate(2px, 2px);
+}
+
+.transport-btn.active {
+  background: var(--line-color);
+  color: #ffffff;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.transport-btn.transport-play {
+  font-size: 13px;
+}
+
+.telemetry-box {
+  margin-top: 0;
+  padding: 8px 10px;
+  background: #fafafa;
+  border: 1px solid #ddd;
+  font-size: 10px;
+  color: #333;
+}
+
+.telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.telemetry-row:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   WIDGET FLOTANTE DE ZOOM / NAVEGACIÓN (TABLERO DIGITAL)
+   ========================================================================== */
+.zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--line-color);
+  box-shadow: 3px 3px 0px rgba(17, 17, 17, 0.15);
+  padding: 2px;
+  gap: 2px;
+  z-index: 25;
+  backdrop-filter: blur(4px);
+}
+
+.zoom-btn {
+  background: #ffffff;
+  color: var(--line-color);
+  border: 1px solid #ddd;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.08s ease;
+}
+
+.zoom-btn:hover {
+  background: var(--line-color);
+  color: #ffffff;
+  border-color: var(--line-color);
+}
+
+.zoom-btn.zoom-level {
+  width: auto;
+  min-width: 48px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+/* ==========================================================================
+   VENTANA DE TABULACIÓN DE DATOS TEMPORALES (SALTOS Δt CONFIGURABLES)
+   ========================================================================== */
+.data-table-panel {
+  top: 75px;
+  left: 315px;
+  width: 530px;
+  max-width: 95vw;
+  z-index: 38;
+}
+
+.data-table-panel.is-minimized {
+  width: 320px;
+}
+
+.table-config-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1.2fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.table-config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.config-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-gray);
+}
+
+.schematic-select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1.5px solid var(--line-color);
+  background: #ffffff;
+  color: var(--line-color);
+  outline: none;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: 1px 1px 0 var(--line-color);
+}
+
+.table-dt-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.schematic-num-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 6px;
+  width: 70px;
+  border: 1.5px solid var(--line-color);
+  background: #ffffff;
+  color: var(--line-color);
+  outline: none;
+  border-radius: 0;
+  box-shadow: 1px 1px 0 var(--line-color);
+}
+
+.unit-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-gray);
+}
+
+.table-dt-presets {
+  grid-template-columns: repeat(6, 1fr) !important;
+  margin-bottom: 8px;
+}
+
+.table-actions-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.table-action-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 5px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.table-action-btn.is-recording {
+  background: #d32f2f !important;
+  color: #ffffff !important;
+  border-color: #b71c1c !important;
+  animation: pulse-recording 1.2s infinite;
+}
+
+@keyframes pulse-recording {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+.table-status-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--accent-gray);
+  padding: 2px 0 6px 0;
+  border-bottom: 1px dashed #ccc;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.table-scroll-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 220px;
+  border: 1.5px solid var(--line-color);
+  background: #ffffff;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.06);
+}
+
+.schematic-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.schematic-data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--line-color);
+  color: #ffffff;
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1.5px solid var(--line-color);
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  z-index: 2;
+}
+
+.schematic-data-table th:first-child {
+  text-align: center;
+}
+
+.schematic-data-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #e2e2de;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.schematic-data-table td:first-child {
+  text-align: center;
+  font-weight: 600;
+  background: #fcfcfc;
+  border-right: 1px dashed #ddd;
+}
+
+.schematic-data-table tr:nth-child(even) td {
+  background: #f9f9f7;
+}
+
+.schematic-data-table tr:hover td {
+  background: #eef2f8;
+}
+
+.schematic-data-table tr.table-empty-row td {
+  text-align: center;
+  color: var(--accent-gray);
+  padding: 28px 12px;
+  font-style: italic;
+  background: transparent;
+}
+
+/* ==========================================================================
+   VENTANA FLOTANTE DEL SISTEMA DE REFERENCIA GLOBAL
+   ========================================================================== */
+.reference-frame-panel {
+  top: 75px;
+  left: 315px;
+  width: 330px;
+  max-width: 95vw;
+  z-index: 37;
+}
+
+.reference-frame-panel.is-minimized {
+  width: 280px;
+}
+
+.ref-toggle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ref-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ref-checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #1a237e;
+}
+
+.ref-coord-inputs {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ref-coord-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-gray);
+  flex: 1;
+}
+
+.ref-coord-item input {
+  flex: 1;
+  width: 100%;
+}
+
+.ref-hint-text {
+  font-size: 9px;
+  color: var(--accent-gray);
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+/* Pastilla flotante de coordenadas del cursor en tiempo real */
+.cursor-coords-pill {
+  position: absolute;
+  bottom: 24px;
+  left: 280px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1.5px solid var(--line-color);
+  box-shadow: 2px 2px 0 var(--line-color);
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.cursor-coords-pill .coord-tag {
+  color: #1a237e;
+  font-weight: 700;
+}
+
+.cursor-coords-pill .coord-sep {
+  color: #bbb;
+  margin: 0 2px;
+}
+

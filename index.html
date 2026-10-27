@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Physics Sandbox — Technical Schematic Lab</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+
+  <!-- Lienzo de simulación física a pantalla completa -->
+  <canvas id="canvas"></canvas>
+
+  <!-- Modal / Popover contextual flotante al dar doble clic sobre un objeto -->
+  <!-- Ventana Flotante Cerrable: Inspector de Parámetros del Objeto -->
+  <aside class="hud-panel object-inspector-panel is-hidden" id="object-inspector-panel" aria-label="Ventana de edición de objeto">
+    <div class="panel-header" id="inspector-header" title="Arrastra desde aquí para mover el panel">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title" id="inspector-title">PROPIEDADES</span>
+        <span class="inspector-badge" id="inspector-badge">OBJETO</span>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-ctrl-btn" id="btn-minimize-inspector" title="Minimizar / Expandir panel" aria-label="Minimizar" type="button">—</button>
+        <button class="panel-ctrl-btn panel-close-btn" id="btn-close-inspector" title="Cerrar menú [Esc]" aria-label="Cerrar panel" type="button">✕</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="inspector-body">
+      <!-- 1. Editor de Masa (Body) -->
+      <div class="inspector-props is-hidden" id="inspector-sec-body">
+        <div class="control-group">
+          <div class="control-label">
+            <span>Masa (<span class="param-sym">m</span>)</span>
+            <span class="param-val" id="val-insp-mass">2.00 kg</span>
+          </div>
+          <input type="range" id="slider-insp-mass" min="0.2" max="10.0" step="0.1" value="2.0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Radio (<span class="param-sym">r</span>)</span>
+            <span class="param-val" id="val-insp-radius">20 px</span>
+          </div>
+          <input type="range" id="slider-insp-radius" min="14" max="36" step="1" value="20">
+        </div>
+
+        <div class="inspector-telemetry-mini">
+          <div class="mini-row"><span>Posición:</span> <span id="val-insp-body-pos">X: 0.00m, Y: 0.00m</span></div>
+          <div class="mini-row"><span>Rapidez |v|:</span> <span id="val-insp-body-vel">0.00 m/s</span></div>
+        </div>
+      </div>
+
+      <!-- 2. Editor de Soporte (Anchor) -->
+      <div class="inspector-props is-hidden" id="inspector-sec-anchor">
+        <div class="control-label">
+          <span>Orientación montaje</span>
+          <span class="param-val" id="val-insp-anchor-angle">-90° (Techo)</span>
+        </div>
+        <div class="timescale-presets" id="inspector-anchor-presets" style="margin-top: 6px;">
+          <button type="button" class="preset-btn" data-angle="-90" title="Montaje en techo (-90°)">⬆ Techo</button>
+          <button type="button" class="preset-btn" data-angle="0" title="Montaje pared der (0°)">➡ Pared Der</button>
+          <button type="button" class="preset-btn" data-angle="90" title="Montaje en suelo (+90°)">⬇ Suelo</button>
+          <button type="button" class="preset-btn" data-angle="180" title="Montaje pared izq (180°)">⬅ Pared Izq</button>
+        </div>
+        <div class="control-group" style="margin-top: 10px;">
+          <div class="control-label">
+            <span>Giro continuo</span>
+            <button type="button" class="preset-btn" id="btn-insp-anchor-rotate" style="padding: 2px 8px;" title="Girar +45°">⟳ +45°</button>
+          </div>
+          <input type="range" id="slider-insp-anchor-angle" min="-180" max="180" step="5" value="-90">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Ancho base</span>
+            <span class="param-val" id="val-insp-anchor-width">44 px</span>
+          </div>
+          <input type="range" id="slider-insp-anchor-width" min="28" max="70" step="2" value="44">
+        </div>
+      </div>
+
+      <!-- 2b. Editor de Riel con Plataforma Deslizante (Slider) -->
+      <div class="inspector-props is-hidden" id="inspector-sec-slider">
+        <div class="inspector-section-label">Plataforma Deslizante (Carro)</div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Masa (<span class="param-sym">M</span>)</span>
+            <span class="param-val" id="val-insp-slider-mass">5.0 kg</span>
+          </div>
+          <input type="range" id="slider-insp-slider-mass" min="0.5" max="25" step="0.5" value="5.0">
+        </div>
+
+        <!-- Controles exclusivos del Actuador Motorizado -->
+        <div id="inspector-motor-controls" class="is-hidden">
+          <div class="inspector-section-label" style="margin-top: 10px;">Motor Lineal (Actuador de Vaivén)</div>
+          
+          <div style="margin-bottom: 8px;">
+            <button type="button" class="axis-lock-btn is-locked" id="btn-insp-motor-toggle" style="width: 100%;" title="Activar / Desactivar motor">
+              <span class="lock-indicator" id="motor-toggle-indicator">[EN MARCHA]</span>
+              <span class="lock-text" id="motor-toggle-text">Motor Activo</span>
+              <span class="lock-sub">[Vaivén continuo de extremo a extremo]</span>
+            </button>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Velocidad motriz (<span class="param-sym">v</span>)</span>
+              <span class="param-val" id="val-insp-motor-speed">1.50 m/s</span>
+            </div>
+            <input type="range" id="slider-insp-motor-speed" min="0.1" max="4.0" step="0.1" value="1.5">
+          </div>
+
+          <div class="control-group">
+            <div class="control-label">
+              <span>Recorrido de carrera (<span class="param-sym">A</span>)</span>
+              <span class="param-val" id="val-insp-motor-amp">90%</span>
+            </div>
+            <input type="range" id="slider-insp-motor-amp" min="40" max="95" step="5" value="90">
+          </div>
+        </div>
+
+        <div class="inspector-section-label" style="margin-top: 10px;">Guía Lineal (Riel)</div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span>Longitud (<span class="param-sym">L</span>)</span>
+            <span class="param-val" id="val-insp-rail-length">4.00 m</span>
+          </div>
+          <input type="range" id="slider-insp-rail-length" min="150" max="800" step="10" value="400">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Inclinación (<span class="param-sym">θ</span>)</span>
+            <span class="param-val" id="val-insp-rail-angle">0°</span>
+          </div>
+          <input type="range" id="slider-insp-rail-angle" min="-180" max="180" step="1" value="0">
+        </div>
+
+        <div class="timescale-presets" id="inspector-rail-presets" style="margin-top: 4px; margin-bottom: 8px;">
+          <button type="button" class="preset-btn" data-angle="0">0° (H)</button>
+          <button type="button" class="preset-btn" data-angle="30">30°</button>
+          <button type="button" class="preset-btn" data-angle="45">45°</button>
+          <button type="button" class="preset-btn" data-angle="90">90° (V)</button>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <button type="button" class="preset-btn" id="btn-insp-rail-rotate" style="width: 100%; padding: 5px 0;" title="Girar riel +45 grados">
+            Rotar +45°
+          </button>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Fricción del riel (<span class="param-sym">μ</span>)</span>
+            <span class="param-val" id="val-insp-rail-friction">0.02</span>
+          </div>
+          <input type="range" id="slider-insp-rail-friction" min="0.00" max="0.50" step="0.01" value="0.02">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Rebote en topes (<span class="param-sym">e</span>)</span>
+            <span class="param-val" id="val-insp-rail-restitution">0.60</span>
+          </div>
+          <input type="range" id="slider-insp-rail-restitution" min="0.00" max="1.00" step="0.05" value="0.60">
+        </div>
+
+        <div class="inspector-telemetry-mini">
+          <div class="mini-row"><span>Posición en riel (s):</span> <span id="val-insp-slider-pos">0.00 m</span></div>
+          <div class="mini-row"><span>Velocidad tangencial (Vs):</span> <span id="val-insp-slider-vs">0.00 m/s</span></div>
+          <div class="mini-row"><span>Inclinación activa:</span> <span id="val-insp-slider-angle">0.0°</span></div>
+        </div>
+      </div>
+
+      <!-- 3. Editor de Resorte (Spring) con restricción de ejes -->
+      <div class="inspector-props is-hidden" id="inspector-sec-spring">
+        <div class="inspector-section-label">Restricción de Eje (Guía 1D / Mov. Acoplado)</div>
+        <div class="axis-lock-group" role="group" aria-label="Bloqueo de ejes del resorte">
+          <button type="button" class="axis-lock-btn" id="btn-spring-lock-x" title="Bloquear eje X (guía vertical: oscilación en eje Y)">
+            <span class="lock-indicator" id="spring-lock-x-indicator">[INACTIVO]</span>
+            <span class="lock-text" id="spring-lock-x-text">Bloquear Eje X</span>
+            <span class="lock-sub">[Solo eje Y]</span>
+          </button>
+          <button type="button" class="axis-lock-btn" id="btn-spring-lock-y" title="Bloquear eje Y (guía horizontal: equilibra peso para oscilar en X)">
+            <span class="lock-indicator" id="spring-lock-y-indicator">[INACTIVO]</span>
+            <span class="lock-text" id="spring-lock-y-text">Bloquear Eje Y</span>
+            <span class="lock-sub">[Solo eje X]</span>
+          </button>
+        </div>
+
+        <div class="control-group" style="margin-top: 10px;">
+          <div class="control-label">
+            <span>Rigidez (<span class="param-sym">k</span>)</span>
+            <span class="param-val" id="val-insp-stiffness">35.0 N/m</span>
+          </div>
+          <input type="range" id="slider-insp-stiffness" min="5" max="150" step="1" value="35">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Longitud natural (<span class="param-sym">L₀</span>)</span>
+            <span class="param-val" id="val-insp-restlength">1.70 m</span>
+          </div>
+          <input type="range" id="slider-insp-restlength" min="50" max="350" step="5" value="170">
+        </div>
+        <div class="inspector-telemetry-mini">
+          <div class="mini-row"><span>Deformación Δx:</span> <span id="val-insp-spring-dx">0.00 m</span></div>
+          <div class="mini-row"><span>Fuerza |F|:</span> <span id="val-insp-spring-force">0.00 N</span></div>
+        </div>
+      </div>
+
+      <!-- 4. Editor de Varilla o Cuerda (Rod / Rope) -->
+      <div class="inspector-props is-hidden" id="inspector-sec-connector">
+        <div class="control-group">
+          <div class="control-label">
+            <span>Longitud geométrica (<span class="param-sym">L</span>)</span>
+            <span class="param-val" id="val-insp-length">1.50 m</span>
+          </div>
+          <input type="range" id="slider-insp-length" min="50" max="400" step="5" value="150">
+        </div>
+        <div class="inspector-telemetry-mini">
+          <div class="mini-row"><span>Tipo:</span> <span id="val-insp-conn-type">Varilla Rígida</span></div>
+        </div>
+      </div>
+
+      <!-- Botón de eliminación -->
+      <button type="button" class="schematic-btn btn-clear-full" id="btn-insp-delete" style="margin-top: 12px; border-color: #d32f2f; color: #d32f2f;" title="Eliminar este objeto del montaje">
+        <span>🗑 Eliminar Objeto</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Barra de Herramientas Flotante -->
+  <nav class="toolbar" aria-label="Herramientas del Sandbox">
+    <!-- Mano / Arrastrar (herramienta activa por defecto) -->
+    <button class="tool-btn active" id="btn-tool-hand" data-tool="select" title="Mano para interactuar y arrastrar (Activa por defecto)">
+      <span class="tool-icon">✋</span>
+      <span class="tool-label">Arrastrar</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Menú plegable para agregar objetos -->
+    <div class="dropdown" id="dropdown-add">
+      <button class="tool-btn dropdown-toggle" id="btn-add-toggle" title="Menú plegable: Agregar objetos al lienzo" aria-expanded="false" type="button">
+        <span class="tool-icon">➕</span>
+        <span id="add-toggle-text">Agregar Objeto</span>
+        <span class="dropdown-chevron">▾</span>
+      </button>
+      <div class="dropdown-menu" id="add-menu" role="menu">
+        <button class="dropdown-item" data-tool="anchor" title="Crear soporte fijo con base rayada" type="button">
+          <span class="item-icon">⏚</span>
+          <span class="item-text">Soporte Fijo</span>
+        </button>
+        <button class="dropdown-item" data-tool="slider" title="Crear riel con plataforma deslizante (guía lineal 1D con inclinación y topes)" type="button">
+          <span class="item-icon">⏥</span>
+          <span class="item-text">Riel con Plataforma</span>
+        </button>
+        <button class="dropdown-item" data-tool="motorized_slider" title="Crear riel motorizado (vaivén armónico continuo sin chocar con extremos)" type="button">
+          <span class="item-icon">⚙</span>
+          <span class="item-text">Riel Motorizado</span>
+        </button>
+        <button class="dropdown-item" data-tool="mass" title="Crear masa puntual libre" type="button">
+          <span class="item-icon">⊕</span>
+          <span class="item-text">Masa Libre</span>
+        </button>
+        <button class="dropdown-item" data-tool="spring" title="Conectar dos nodos elásticamente mediante un resorte" type="button">
+          <span class="item-icon">〰</span>
+          <span class="item-text">Resorte Elástico</span>
+        </button>
+        <button class="dropdown-item" data-tool="rod" title="Conectar dos nodos con una varilla rígida" type="button">
+          <span class="item-icon">━</span>
+          <span class="item-text">Varilla Rígida</span>
+        </button>
+        <button class="dropdown-item" data-tool="rope" title="Conectar dos nodos con una cuerda flexible inelástica (péndulo simple)" type="button">
+          <span class="item-icon">∿</span>
+          <span class="item-text">Cuerda Inelástica</span>
+        </button>
+        <button class="dropdown-item" data-tool="preset_pendulum" title="Crear montaje de Péndulo Simple ideal (Soporte + Cuerda + Masa oscilante)" type="button">
+          <span class="item-icon">⚖</span>
+          <span class="item-text">Péndulo Simple</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Botón de Borrar Objetos -->
+    <button class="tool-btn btn-delete" id="btn-tool-delete" data-tool="delete" title="Eliminar nodo o conector" type="button">
+      <span class="tool-icon">✕</span>
+      <span class="tool-label">Borrar</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Botón Tabla de Datos Temporales -->
+    <button class="tool-btn" id="btn-tool-table" title="Abrir ventana de tabulación de datos temporales respecto al tiempo" type="button">
+      <span class="tool-icon">📊</span>
+      <span class="tool-label">Tabla de Datos</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Botón Sistema de Referencia Global -->
+    <button class="tool-btn" id="btn-tool-ref-frame" title="Configurar sistema de referencia global, origen (0,0), escala y nivel cero" type="button">
+      <span class="tool-icon">📐</span>
+      <span class="tool-label">Referencia</span>
+    </button>
+  </nav>
+
+  <!-- Ventana Flotante de Tabulación de Datos Temporales (Configurable en saltos de tiempo Δt) -->
+  <aside class="hud-panel data-table-panel is-hidden" id="data-table-panel" aria-label="Ventana de tabulación de datos temporales">
+    <div class="panel-header" id="data-table-header" title="Arrastra desde aquí para mover la ventana de datos">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title">TABLA DE DATOS TEMPORALES</span>
+        <span class="badge" id="badge-table-status">DETENIDO</span>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-ctrl-btn" id="btn-minimize-data-table" title="Minimizar / Expandir ventana" aria-label="Minimizar ventana" type="button">—</button>
+        <button class="panel-ctrl-btn panel-close-btn" id="btn-close-data-table" title="Cerrar tabla [Esc]" aria-label="Cerrar ventana" type="button">✕</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="data-table-body">
+      <!-- Configuración: Selección de Objeto e Intervalo de Muestreo (Salto de tiempo) -->
+      <div class="table-config-grid">
+        <div class="table-config-item">
+          <label for="table-target-select" class="config-label">Objeto medido:</label>
+          <select id="table-target-select" class="schematic-select" title="Selecciona qué cuerpo o sistema tabular"></select>
+        </div>
+
+        <div class="table-config-item">
+          <label for="table-dt-input" class="config-label">Salto de tiempo (Δt):</label>
+          <div class="table-dt-control">
+            <input type="number" id="table-dt-input" min="0.01" max="10.0" step="0.01" value="0.10" class="schematic-num-input" title="Intervalo temporal entre filas sucesivas">
+            <span class="unit-tag">s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets de saltos temporales rápidos -->
+      <div class="timescale-presets table-dt-presets" id="table-dt-presets" title="Seleccionar salto temporal Δt rápido">
+        <button class="preset-btn" data-dt="0.02" type="button">0.02s</button>
+        <button class="preset-btn" data-dt="0.05" type="button">0.05s</button>
+        <button class="preset-btn active" data-dt="0.10" type="button">0.10s</button>
+        <button class="preset-btn" data-dt="0.25" type="button">0.25s</button>
+        <button class="preset-btn" data-dt="0.50" type="button">0.50s</button>
+        <button class="preset-btn" data-dt="1.00" type="button">1.00s</button>
+      </div>
+
+      <!-- Barra de acciones: Grabar en vivo, Generar desde Historial, Limpiar, Exportar -->
+      <div class="table-actions-bar">
+        <button class="schematic-btn table-action-btn" id="btn-table-record" type="button" title="Iniciar o pausar captura continua mientras se ejecuta la simulación">
+          <span id="btn-table-record-icon">⏺</span> <span id="btn-table-record-text">Grabar en Vivo</span>
+        </button>
+        <button class="schematic-btn table-action-btn" id="btn-table-generate-history" type="button" title="Generar la tabla muestreando el historial grabado a saltos de Δt">
+          <span>⚡ Tabular Historial</span>
+        </button>
+        <button class="schematic-btn table-action-btn" id="btn-table-clear" type="button" title="Vaciar filas de la tabla">
+          <span>🗑 Limpiar</span>
+        </button>
+        <button class="schematic-btn table-action-btn" id="btn-table-export-csv" type="button" title="Descargar archivo CSV compatible con Excel, Google Sheets o Python">
+          <span>📥 Exportar CSV</span>
+        </button>
+      </div>
+
+      <!-- Metadatos de la tabla -->
+      <div class="table-status-info">
+        <span id="table-row-count">0 filas registradas</span>
+        <span id="table-time-range">Δt = 0.10 s</span>
+      </div>
+
+      <!-- Contenedor scrollable de la tabla técnica -->
+      <div class="table-scroll-container">
+        <table class="schematic-data-table" id="data-table-element">
+          <thead id="data-table-head"></thead>
+          <tbody id="data-table-body-rows">
+            <tr class="table-empty-row">
+              <td colspan="5">Sin datos tabulados. Presiona "Grabar en Vivo" o "Tabular Historial".</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Ventana Flotante del Sistema de Referencia Global (Configurable en origen, ejes, escala y nivel cero) -->
+  <aside class="hud-panel reference-frame-panel is-hidden" id="reference-frame-panel" aria-label="Ventana del sistema de referencia global">
+    <div class="panel-header" id="reference-frame-header" title="Arrastra desde aquí para mover la ventana de referencia">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title">SISTEMA DE REFERENCIA</span>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-ctrl-btn" id="btn-minimize-ref-frame" title="Minimizar / Expandir ventana" aria-label="Minimizar ventana" type="button">—</button>
+        <button class="panel-ctrl-btn panel-close-btn" id="btn-close-ref-frame" title="Cerrar [Esc]" aria-label="Cerrar ventana" type="button">✕</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="reference-frame-body">
+      <!-- Visibilidad y capas -->
+      <div class="section-title">Visualización</div>
+      <div class="ref-toggle-grid">
+        <label class="ref-checkbox-label">
+          <input type="checkbox" id="chk-rf-axes" checked>
+          <span>Ejes Cartesianos (X, Y)</span>
+        </label>
+        <label class="ref-checkbox-label">
+          <input type="checkbox" id="chk-rf-grid" checked>
+          <span>Cuadrícula Métrica</span>
+        </label>
+        <label class="ref-checkbox-label">
+          <input type="checkbox" id="chk-rf-datum" checked>
+          <span>Nivel Cero (E_p = 0)</span>
+        </label>
+        <label class="ref-checkbox-label">
+          <input type="checkbox" id="chk-rf-cursor" checked>
+          <span>Coordenadas en Cursor</span>
+        </label>
+      </div>
+
+      <!-- Origen de Coordenadas (0, 0) -->
+      <div class="section-title" style="margin-top: 12px;">Origen de Coordenadas (0, 0)</div>
+      <div class="ref-coord-inputs">
+        <div class="ref-coord-item">
+          <label for="input-rf-origin-x">X₀ (px):</label>
+          <input type="number" id="input-rf-origin-x" step="10" value="700" class="schematic-num-input">
+        </div>
+        <div class="ref-coord-item">
+          <label for="input-rf-origin-y">Y₀ (px):</label>
+          <input type="number" id="input-rf-origin-y" step="10" value="800" class="schematic-num-input">
+        </div>
+      </div>
+      <div class="timescale-presets" style="margin-top: 6px;">
+        <button type="button" class="preset-btn" id="btn-rf-origin-center" title="Centrar origen en la hoja de trabajo">Centrar</button>
+        <button type="button" class="preset-btn" id="btn-rf-origin-bottom-left" title="Colocar origen en esquina inferior izquierda">Esquina Inf.</button>
+        <button type="button" class="preset-btn" id="btn-rf-origin-align-obj" title="Alinear origen con el objeto actualmente seleccionado">Alinear a Objeto</button>
+        <button type="button" class="preset-btn" id="btn-rf-origin-lowest" title="Alinear origen (0,0) con el punto más bajo del péndulo o sistema">Punto más bajo</button>
+      </div>
+      <div class="ref-hint-text">💡 También puedes arrastrar directamente el icono ⊙ en pantalla con la herramienta Mano.</div>
+
+      <!-- Escala de Conversión (Píxeles por Metro) -->
+      <div class="section-title" style="margin-top: 12px;">Escala Métrica</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Escala (<span class="param-sym">PPM</span>)</span>
+          <span class="param-val" id="val-rf-ppm">100 px/m (1 m = 100 px)</span>
+        </div>
+        <input type="range" id="slider-rf-ppm" min="30" max="250" step="5" value="100">
+      </div>
+      <div class="timescale-presets" id="rf-ppm-presets" style="margin-top: 4px;">
+        <button type="button" class="preset-btn" data-ppm="50">50 px/m</button>
+        <button type="button" class="preset-btn active" data-ppm="100">100 px/m</button>
+        <button type="button" class="preset-btn" data-ppm="150">150 px/m</button>
+        <button type="button" class="preset-btn" data-ppm="200">200 px/m</button>
+      </div>
+
+      <!-- Nivel Cero de Energía Potencial Gravitatoria (Datum) -->
+      <div class="section-title" style="margin-top: 12px;">Nivel Cero de Energía Potencial (E_p = 0)</div>
+      <div class="control-group">
+        <div class="control-label">
+          <span>Posición física (<span class="param-sym">Y_ref</span>)</span>
+          <span class="param-val" id="val-rf-datum-phys">0.00 m</span>
+        </div>
+        <div class="ref-coord-inputs" style="margin-bottom: 6px; align-items: flex-end;">
+          <div class="ref-coord-item" style="flex: 1;">
+            <label for="input-rf-datum-phys">Y_ref (m):</label>
+            <input type="number" id="input-rf-datum-phys" step="0.1" value="0.0" class="schematic-num-input">
+          </div>
+          <button type="button" class="preset-btn" id="btn-rf-datum-zero-direct" title="Fijar nivel cero exactamente en 0.00 m (Cero Absoluto)" style="font-weight: bold; height: 30px; padding: 0 10px; margin-left: 6px; background: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">0.00 m</button>
+        </div>
+      </div>
+      <div class="timescale-presets">
+        <button type="button" class="preset-btn" id="btn-rf-datum-align-origin" title="Hacer que Ep = 0 coincida con el origen cartesiano Y = 0" style="font-weight: bold; color: #1b5e20;">En Origen (Y=0)</button>
+        <button type="button" class="preset-btn" id="btn-rf-datum-lowest" title="Alinear Ep = 0 con el punto más bajo del péndulo o sistema (Ep = 0 en la parte más baja)">Punto más bajo (Péndulo)</button>
+        <button type="button" class="preset-btn" id="btn-rf-datum-align-floor" title="Colocar Ep = 0 en el suelo o base de la hoja de trabajo">En Suelo</button>
+        <button type="button" class="preset-btn" id="btn-rf-datum-align-obj" title="Hacer que Ep = 0 coincida con la altura del objeto seleccionado">En Objeto</button>
+      </div>
+      <div class="ref-hint-text">💡 Cambiar el nivel cero no modifica el movimiento físico de ningún cuerpo, solo redefine el cero de la energía potencial.</div>
+    </div>
+  </aside>
+
+  <!-- Panel de Parámetros Deslizable por toda la pantalla y Minimizable -->
+  <aside class="hud-panel" id="hud-panel" aria-label="Panel de configuración física">
+    <div class="panel-header" id="panel-header" title="Arrastra desde aquí para mover el panel por la pantalla">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title">PARÁMETROS FÍSICOS</span>
+      </div>
+      <div class="panel-header-right">
+        <span class="badge" id="badge-status">RUNNING</span>
+        <button class="panel-ctrl-btn" id="btn-minimize-panel" title="Minimizar / Expandir panel" aria-label="Minimizar panel" type="button">—</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="panel-body">
+      <!-- Parámetros físicos globales -->
+      <div class="section-title" id="params-section-title">Parámetros Globales (0)</div>
+
+      <!-- Aviso cuando no hay parámetros globales configurables en pantalla -->
+      <div class="params-empty-notice" id="params-empty-notice">
+        <span class="empty-icon">⚙</span>
+        <div class="empty-text">Sin parámetros globales configurables.<br>Haz clic sobre un objeto para editar sus propiedades individuales (masa, rigidez, longitud).</div>
+      </div>
+
+      <!-- Gravedad (activo cuando hay masas libres) -->
+      <div class="control-group" id="group-gravity">
+        <div class="control-label">
+          <span>Gravedad (<span class="param-sym">g</span>)</span>
+          <span class="param-val" id="val-gravity">9.81 m/s²</span>
+        </div>
+        <input type="range" id="slider-gravity" min="0" max="30" step="0.1" value="9.8">
+      </div>
+
+      <!-- Amortiguamiento viscoso / disipación (activo para todo movimiento en el medio) -->
+      <div class="control-group" id="group-damping">
+        <div class="control-label">
+          <span>Amortiguamiento (<span class="param-sym">c</span>)</span>
+          <span class="param-val" id="val-damping">0.00 N·s/m</span>
+        </div>
+        <input type="range" id="slider-damping" min="0" max="2.0" step="0.01" value="0">
+      </div>
+
+      <!-- Botón de Limpiar Lienzo -->
+      <button class="schematic-btn btn-clear-full" id="btn-clear" type="button" title="Limpiar todos los elementos del lienzo">
+        <span>🗑 Limpiar Lienzo</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Ventana de Control Temporal y Retroceso Deslizable y Minimizable -->
+  <aside class="hud-panel timescale-panel" id="timescale-panel" aria-label="Ventana de control temporal y retroceso">
+    <div class="panel-header" id="timescale-header" title="Arrastra desde aquí para mover el control temporal por la pantalla">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title">CONTROL TEMPORAL</span>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-ctrl-btn" id="btn-minimize-timescale" title="Minimizar / Expandir control temporal" aria-label="Minimizar control temporal" type="button">—</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="timescale-body">
+      <!-- Escala Temporal / Velocidad de Simulación -->
+      <div class="control-group" id="group-timescale">
+        <div class="control-label">
+          <span>Velocidad (<span class="param-sym">Escala</span>)</span>
+          <span class="param-val" id="val-timescale">1.00x</span>
+        </div>
+        <input type="range" id="slider-timescale" min="0.05" max="1.50" step="0.05" value="1.00">
+        <div class="timescale-presets" id="timescale-presets" role="group" aria-label="Velocidades predeterminadas">
+          <button type="button" class="preset-btn" data-scale="0.10" title="Cámara lenta a 0.10x">0.1x</button>
+          <button type="button" class="preset-btn" data-scale="0.25" title="Cámara lenta a 0.25x">0.25x</button>
+          <button type="button" class="preset-btn" data-scale="0.50" title="Cámara lenta a 0.50x">0.5x</button>
+          <button type="button" class="preset-btn active" data-scale="1.00" title="Velocidad normal a 1.00x">1.0x</button>
+        </div>
+      </div>
+
+      <!-- Línea de Tiempo / Historial de Movimiento -->
+      <div class="control-group" id="group-timeline">
+        <div class="control-label">
+          <span>Línea de tiempo</span>
+          <span class="param-val" id="val-sim-time">0.00 s</span>
+        </div>
+        <input type="range" id="slider-timeline" min="0" max="0" value="0" step="1" title="Desplazar manualmente por el historial grabado">
+      </div>
+
+      <!-- Barra de Transporte Temporal (Pasos, Retroceso, Pausa/Play, Reinicio) -->
+      <div class="transport-row">
+        <button class="transport-btn" id="btn-reset-state" type="button" title="Reiniciar al estado inicial [Z]">↺</button>
+        <button class="transport-btn" id="btn-step-back" type="button" title="Paso atrás / Retroceder un fotograma [,]">⏮</button>
+        <button class="transport-btn" id="btn-rewind" type="button" title="Rebobinar / Retroceder movimiento continuamente [B]">◀◀</button>
+        <button class="transport-btn transport-play" id="btn-pause" type="button" title="Pausar o reanudar simulación [Espacio]">
+          <span id="btn-pause-text">⏸</span>
+        </button>
+        <button class="transport-btn" id="btn-step" type="button" title="Paso adelante / Avanzar un fotograma [.]">⏭</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Ventana de Telemetría Mecánica Deslizable y Minimizable -->
+  <aside class="hud-panel telemetry-panel" id="telemetry-panel" aria-label="Ventana de telemetría mecánica">
+    <div class="panel-header" id="telemetry-header" title="Arrastra desde aquí para mover la telemetría por la pantalla">
+      <div class="panel-header-left">
+        <span class="drag-handle-grip" title="Arrastrar ventana">⋮⋮</span>
+        <span class="panel-header-title">TELEMETRÍA MECÁNICA</span>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-ctrl-btn" id="btn-minimize-telemetry" title="Minimizar / Expandir telemetría" aria-label="Minimizar telemetría" type="button">—</button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="telemetry-body">
+      <div class="telemetry-box">
+        <div class="telemetry-row">
+          <span>Nodos activos:</span>
+          <span id="tel-nodes">0</span>
+        </div>
+        <div class="telemetry-row">
+          <span>Conectores:</span>
+          <span id="tel-connectors">0</span>
+        </div>
+        <div class="telemetry-row">
+          <span>Energía Cinética (E_k):</span>
+          <span id="tel-ek">0.00 J</span>
+        </div>
+        <div class="telemetry-row">
+          <span>Energía Potencial (E_p):</span>
+          <span id="tel-ep">0.00 J</span>
+        </div>
+        <div class="telemetry-row">
+          <span><strong>Energía Mecánica Total:</strong></span>
+          <strong id="tel-energy">0.00 J</strong>
+        </div>
+        <div class="telemetry-row">
+          <span>Velocidad media (|v|):</span>
+          <span id="tel-speed">0.00 m/s</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Controles flotantes de Zoom / Navegación del Tablero Digital -->
+  <div class="zoom-controls" id="zoom-controls" aria-label="Controles de zoom del tablero digital">
+    <button class="zoom-btn" id="btn-zoom-out" title="Alejar (Zoom Out) [−]" type="button">−</button>
+    <button class="zoom-btn zoom-level" id="btn-zoom-reset" title="Restablecer al 100% y centrar vista [R]" type="button">100%</button>
+    <button class="zoom-btn" id="btn-zoom-in" title="Acercar (Zoom In) [+]" type="button">+</button>
+  </div>
+
+  <!-- Pastilla flotante con coordenadas físicas del cursor en tiempo real -->
+  <div class="cursor-coords-pill" id="cursor-coords-pill">
+    <span class="coord-tag">X:</span> <span id="cursor-coord-x">+0.00 m</span>
+    <span class="coord-sep">|</span>
+    <span class="coord-tag">Y:</span> <span id="cursor-coord-y">+0.00 m</span>
+  </div>
+
+  <script src="bundle.js?v=3"></script>
+</body>
+</html>

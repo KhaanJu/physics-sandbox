@@ -1,0 +1,20 @@
+# Entornos de prueba y directorios temporales
+scratch/
+test_*.js
+test_*.mjs
+diag.html
+*.log
+*.png
+*.jpg
+*.jpeg
+
+# Archivos de respaldo
+*.step*
+*.bak
+*.tmp
+
+# Archivos del sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
