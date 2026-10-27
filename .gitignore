@@ -7,6 +7,7 @@ diag.html
 *.png
 *.jpg
 *.jpeg
+*.sh
 
 # Archivos de respaldo
 *.step*
